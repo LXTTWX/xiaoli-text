@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>致班主任 —— 2026届高三7班毕业留念</title>
+    <meta name="description" content="2026届高三7班毕业典礼，向班主任展示的纪念网页">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- 交互式动态Canvas背景 -->
+    <canvas id="interactive-bg" class="fullscreen-canvas"></canvas>
+
+    <!-- 滚动导航侧边栏 -->
+    <nav id="scroll-nav" class="scroll-nav">
+        <div class="scroll-nav-track"></div>
+        <a href="#hero-module" class="scroll-nav-dot active" data-label="首页"></a>
+        <a href="#timer-module" class="scroll-nav-dot" data-label="相识时钟"></a>
+        <a href="#stats-module" class="scroll-nav-dot" data-label="数据统计"></a>
+        <a href="#beaker-module" class="scroll-nav-dot" data-label="记忆烧杯"></a>
+        <a href="#timeline-module" class="scroll-nav-dot" data-label="时间轴"></a>
+        <a href="#photo-wall-module" class="scroll-nav-dot" data-label="照片墙"></a>
+        <a href="#video-module" class="scroll-nav-dot" data-label="视频"></a>
+        <a href="#quotes-module" class="scroll-nav-dot" data-label="语录"></a>
+        <a href="#equations-module" class="scroll-nav-dot" data-label="方程式"></a>
+        <a href="#letter-module" class="scroll-nav-dot" data-label="信件"></a>
+        <a href="#leave-module" class="scroll-nav-dot" data-label="请假条"></a>
+        <a href="#messages-module" class="scroll-nav-dot" data-label="留言墙"></a>
+    </nav>
+
+    <main>
+        <!-- 新模块 1: 首页 Hero Banner (实验报告) -->
+        <section id="hero-module" class="hero-fullscreen">
+            <div class="hero-content">
+                <div class="atomic-orbits">
+                    <div class="orbit orbit-1"></div>
+                    <div class="orbit orbit-2"></div>
+                    <div class="orbit orbit-3"></div>
+                    <div class="orbit orbit-4"></div>
+                </div>
+                <div class="hero-text-container">
+                    <h1 class="hero-main-title glow-text">致班主任的<br>化学实验报告</h1>
+                    <h2 class="hero-sub-title cyan-glow-text">实验名称：关于我们的两年</h2>
+                    <p class="hero-meta">Experiment No. 2024-2026 · 高三年(7)班</p>
+                </div>
+            </div>
+            
+            <div class="scroll-down-arrow">↓</div>
+            
+            <div class="audio-controls-wrapper">
+                <div class="audio-controls">
+                    <button id="btn-audio-toggle" class="audio-btn glass-panel">
+                        <!-- 默认显示静音图标，因为初始状态未播放 -->
+                        <svg id="icon-mute" viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+                        <svg id="icon-play" viewBox="0 0 24 24" width="24" height="24" class="hidden"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                    </button>
+                </div>
+                
+                <!-- 音频控制面板 -->
+                <div id="audio-panel" class="audio-panel glass-panel hidden">
+                    <div class="panel-header">
+                        <span class="panel-title">背景音乐控制</span>
+                        <button id="btn-panel-close" class="panel-close">&times;</button>
+                    </div>
+                    <div class="track-info">
+                        <div class="track-name" id="current-track-name">凤凰花开的路口</div>
+                        <div class="progress-container">
+                            <span id="time-current" class="time-text">0:00</span>
+                            <div class="progress-bar-wrapper">
+                                <input type="range" id="progress-slider" class="progress-slider" min="0" max="100" value="0" step="0.1">
+                                <div id="progress-fill" class="progress-fill"></div>
+                            </div>
+                            <span id="time-duration" class="time-text">0:00</span>
+                        </div>
+                    </div>
+                    <div class="panel-controls">
+                        <button id="btn-prev-track" class="ctrl-btn" title="切换上一首">
+                            <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                        </button>
+                        <button id="btn-play-pause" class="ctrl-btn" title="播放/暂停">
+                            <!-- 播放图标 (默认隐藏) -->
+                            <svg id="panel-icon-play" viewBox="0 0 24 24" width="20" height="20" class="hidden"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+                            <!-- 暂停图标 -->
+                            <svg id="panel-icon-pause" viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                        </button>
+                        <button id="btn-next-track" class="ctrl-btn" title="切换下一首">
+                            <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                        </button>
+                    </div>
+                    <div class="volume-control">
+                        <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                        <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.5">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 隐藏的音频播放器 -->
+            <audio id="bgm-player" preload="metadata">
+                <source src="凤凰花开的路口 - 林志炫.mp3" type="audio/mpeg">
+            </audio>
+        </section>
+
+        <!-- 新模块 2: 高考结束翻页倒计时 (独立模块) -->
+        <section id="timer-module" class="module-section" data-anim="zoom-in">
+            <div class="section-header">
+                <h2>永不停止的反应</h2>
+                <p>从理综考场放下笔的那一刻起，我们告别了化学方程式，却告别不了您</p>
+            </div>
+            
+            <!-- 相识已挂钟 -->
+            <div class="flip-clock-container">
+                <div class="flip-clock-label">我们相识已</div>
+                <div class="since-clock-row">
+                    <div class="analog-clock-wrapper">
+                        <canvas id="since-clock" width="520" height="520"></canvas>
+                    </div>
+                    <div class="since-time-stats" id="since-time-stats">
+                        <div class="since-stat"><span class="since-stat-value" id="since-days">0</span><span class="since-stat-unit">天</span></div>
+                        <div class="since-stat"><span class="since-stat-value" id="since-hours">0</span><span class="since-stat-unit">小时</span></div>
+                        <div class="since-stat"><span class="since-stat-value" id="since-mins">0</span><span class="since-stat-unit">分钟</span></div>
+                        <div class="since-stat"><span class="since-stat-value" id="since-secs">0</span><span class="since-stat-unit">秒</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 高考结束翻页时钟 -->
+            <div class="flip-clock-container">
+                <div class="flip-clock-label">高考结束已过</div>
+                <div class="flip-clock" id="flip-clock">
+                    <div class="flip-unit">
+                        <div class="flip-card" id="flip-days">
+                            <div class="top"><span>00</span></div>
+                            <div class="bottom"><span>00</span></div>
+                        </div>
+                        <span class="flip-unit-label">天</span>
+                    </div>
+                    <div class="flip-divider">:</div>
+                    <div class="flip-unit">
+                        <div class="flip-card" id="flip-hours">
+                            <div class="top"><span>00</span></div>
+                            <div class="bottom"><span>00</span></div>
+                        </div>
+                        <span class="flip-unit-label">时</span>
+                    </div>
+                    <div class="flip-divider">:</div>
+                    <div class="flip-unit">
+                        <div class="flip-card" id="flip-minutes">
+                            <div class="top"><span>00</span></div>
+                            <div class="bottom"><span>00</span></div>
+                        </div>
+                        <span class="flip-unit-label">分</span>
+                    </div>
+                    <div class="flip-divider">:</div>
+                    <div class="flip-unit">
+                        <div class="flip-card" id="flip-seconds">
+                            <div class="top"><span>00</span></div>
+                            <div class="bottom"><span>00</span></div>
+                        </div>
+                        <span class="flip-unit-label">秒</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 模块: 班级数据看板 -->
+        <section id="stats-module" class="module-section" data-anim="slide-left">
+            <div class="section-header">
+                <h2>实验参数统计</h2>
+                <p>那些无法被配平的青春数据</p>
+            </div>
+            <div class="stats-grid" id="stats-container">
+                <div class="stat-card glass-panel">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" width="40" height="40"><path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
+                    </div>
+                    <div class="stat-value" id="stat-days" data-target="0">0</div>
+                    <div class="stat-label">相识天数</div>
+                </div>
+                <div class="stat-card glass-panel">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" width="40" height="40"><path fill="currentColor" d="M19.8 18.4L14 10.67V6.5l1.35-1.69c.26-.33.03-.81-.39-.81H9.04c-.42 0-.65.48-.39.81L10 6.5v4.17L4.2 18.4c-.49.66-.02 1.6.8 1.6h14c.82 0 1.29-.94.8-1.6zM11 16l1-1 1 1 1-1 1 1 1-1 1 1v1H7v-1l1-1 1 1 1-1z"/></svg>
+                    </div>
+                    <div class="stat-value" data-target="312">0</div>
+                    <div class="stat-label">化学课节数</div>
+                </div>
+                <div class="stat-card glass-panel">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" width="40" height="40"><path fill="currentColor" d="M19.8 18.4L14 10.67V6.5l1.35-1.69c.26-.33.03-.81-.39-.81H9.04c-.42 0-.65.48-.39.81L10 6.5v4.17L4.2 18.4c-.49.66-.02 1.6.8 1.6h14c.82 0 1.29-.94.8-1.6zM11 16l1-1 1 1 1-1 1 1 1-1 1 1v1H7v-1l1-1 1 1 1-1z"/></svg>
+                    </div>
+                    <div class="stat-value" data-target="57">0</div>
+                    <div class="stat-label">高二上化学课</div>
+                </div>
+                <div class="stat-card glass-panel">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" width="40" height="40"><path fill="currentColor" d="M19.8 18.4L14 10.67V6.5l1.35-1.69c.26-.33.03-.81-.39-.81H9.04c-.42 0-.65.48-.39.81L10 6.5v4.17L4.2 18.4c-.49.66-.02 1.6.8 1.6h14c.82 0 1.29-.94.8-1.6zM11 16l1-1 1 1 1-1 1 1 1-1 1 1v1H7v-1l1-1 1 1 1-1z"/></svg>
+                    </div>
+                    <div class="stat-value" data-target="58">0</div>
+                    <div class="stat-label">高二下化学课</div>
+                </div>
+                <div class="stat-card glass-panel">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" width="40" height="40"><path fill="currentColor" d="M19.8 18.4L14 10.67V6.5l1.35-1.69c.26-.33.03-.81-.39-.81H9.04c-.42 0-.65.48-.39.81L10 6.5v4.17L4.2 18.4c-.49.66-.02 1.6.8 1.6h14c.82 0 1.29-.94.8-1.6zM11 16l1-1 1 1 1-1 1 1 1-1 1 1v1H7v-1l1-1 1 1 1-1z"/></svg>
+                    </div>
+                    <div class="stat-value" data-target="101">0</div>
+                    <div class="stat-label">高三上化学课</div>
+                </div>
+                <div class="stat-card glass-panel">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" width="40" height="40"><path fill="currentColor" d="M19.8 18.4L14 10.67V6.5l1.35-1.69c.26-.33.03-.81-.39-.81H9.04c-.42 0-.65.48-.39.81L10 6.5v4.17L4.2 18.4c-.49.66-.02 1.6.8 1.6h14c.82 0 1.29-.94.8-1.6zM11 16l1-1 1 1 1-1 1 1 1-1 1 1v1H7v-1l1-1 1 1 1-1z"/></svg>
+                    </div>
+                    <div class="stat-value" data-target="96">0</div>
+                    <div class="stat-label">高三下化学课</div>
+                </div>
+                <div class="stat-card glass-panel">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" width="40" height="40"><path fill="currentColor" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                    </div>
+                    <div class="stat-value" data-target="108">0</div>
+                    <div class="stat-label">刷过的理综卷</div>
+                </div>
+                <div class="stat-card glass-panel">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" width="40" height="40"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                    </div>
+                    <div class="stat-value" data-target="99.9" data-suffix="%">0</div>
+                    <div class="stat-label">师生默契度</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 模块 9: 互动烧杯 -->
+        <section id="beaker-module" class="module-section" data-anim="flip-up">
+            <div class="section-header">
+                <h2>记忆的溶液</h2>
+                <p>鼠标滑动搅拌溶液，点击滴加记忆试剂</p>
+            </div>
+            <div class="beaker-container">
+                <div class="beaker-wrapper">
+                    <canvas id="beaker-canvas" width="300" height="400"></canvas>
+                    <div class="elephant-fountain" id="elephant-fountain" aria-hidden="true"></div>
+                </div>
+                <div id="beaker-status" class="beaker-status glass-panel">初遇：清澈如水</div>
+            </div>
+        </section>
+
+        <!-- 模块 3: 两年进程时间轴 -->
+        <section id="timeline-module" class="module-section" data-anim="fade-rise">
+            <div class="section-header">
+                <h2>时光的滴定</h2>
+                <p>记录我们从初遇至毕业的滴滴点点</p>
+            </div>
+            <div class="timeline-container" id="timeline"></div>
+        </section>
+
+        <!-- 模块 11: 班级照片墙 -->
+        <section id="photo-wall-module" class="module-section" data-anim="slide-right">
+            <div class="section-header">
+                <h2>永恒的分子结构</h2>
+                <p>定格瞬间，成为我们记忆晶体中最耀眼的节点</p>
+            </div>
+            <div class="photo-sort-bar">
+                <label class="sort-label" for="photo-sort">时间排序：</label>
+                <select id="photo-sort" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:6px 30px 6px 12px;border-radius:20px;font-size:0.85rem;cursor:pointer;outline:none;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 fill=%22white%22 viewBox=%220 0 16 16%22%3E%3Cpath d=%22M8 11L3 6h10z%22/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 10px center;">
+                    <option value="asc" style="background:#1a1a2e;color:#fff">正序 ↑</option>
+                    <option value="desc" style="background:#1a1a2e;color:#fff">倒序 ↓</option>
+                </select>
+            </div>
+            <div class="photo-grid" id="photo-wall"></div>
+        </section>
+
+        <!-- 模块: 视频集锦 -->
+        <section id="video-module" class="module-section" data-anim="zoom-in">
+            <div class="section-header">
+                <h2>青春的影像</h2>
+                <p>每一帧都是值得珍藏的瞬间</p>
+            </div>
+            <div class="video-grid" id="video-wall"></div>
+        </section>
+
+        <!-- 模块 4: 课堂经典语录 -->
+        <section id="quotes-module" class="module-section" data-anim="slide-left">
+            <div class="section-header">
+                <h2>讲台上的催化剂</h2>
+                <p>那些让我们醍醐灌顶的瞬间</p>
+            </div>
+            <div class="quotes-grid" id="quotes-container"></div>
+        </section>
+
+        <!-- 模块 6: 特殊意义化学方程式 -->
+        <section id="equations-module" class="module-section" data-anim="flip-up">
+            <div class="section-header">
+                <h2>情感的方程式</h2>
+                <p>用最理性的符号，写最浪漫的告白</p>
+            </div>
+            <div class="equations-container" id="equations-container"></div>
+        </section>
+
+        <!-- 模块 7: 给老师的一封信 -->
+        <section id="letter-module" class="module-section" data-anim="fade-rise">
+            <div class="section-header">
+                <h2>一封未寄出的信</h2>
+                <p>致2024年8月26日那个初秋的早晨</p>
+            </div>
+            <div class="envelope-container" id="envelope">
+                <div class="envelope-front">
+                    <div class="stamp"></div>
+                    <div class="address">致：最敬爱的班主任<br>2026届高三7班 全体同学</div>
+                </div>
+                <div class="letter-paper" id="letter-content">
+                    <h3>亲爱的班主任：</h3>
+                    <p>展信佳。</p>
+                    <p>还记得2024年8月26日那个初秋的早晨吗？您第一次走进我们的教室，带着化学独有的严谨和您特有的温暖。</p>
+                    <p>两年间，我们在您的带领下，探索了原子的奥秘，经历了无数次的测验和磨砺。您就像催化剂，降低了我们前行路上的活化能；您又像缓冲溶液，在我们情绪起伏时给予最大的包容和支持。</p>
+                    <p>今天，2026年6月9日，高考结束的钟声敲响。我们毕业了。脱下了校服，走出了考场，但我们永远不会忘记您在黑板上写下的每一个方程式。</p>
+                    <p>愿您未来的日子，如同金刚石般坚韧璀璨，如同稀有气体般安稳祥和。</p>
+                    <p class="signature">2026届高三7班 全体同学<br>2026年6月</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 模块 8: 电子请假条 -->
+        <section id="leave-module" class="module-section" data-anim="slide-right">
+            <div class="section-header">
+                <h2>最后的请假条</h2>
+                <p>这一次，期限是永远</p>
+            </div>
+            <div class="leave-slip">
+                <h3>请 假 条</h3>
+                <div class="leave-content">
+                    <p><strong>尊敬的班主任：</strong></p>
+                    <p>我们因 <span class="highlight">毕业</span> 需请假 <span class="highlight">永久</span>，望批准。</p>
+                    <p class="leave-date">申请人：高三7班全体同学<br>时间：2026年6月9日</p>
+                </div>
+                <div class="signature-area">
+                    <p>班主任签名处：</p>
+                    <canvas id="signature-canvas" width="400" height="150"></canvas>
+                    <div class="signature-controls">
+                        <button id="clear-signature" class="btn">重新签名</button>
+                        <button id="approve-leave" class="btn primary">批 准</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 模块 5: 互动式留言墙 -->
+        <section id="messages-module" class="module-section" data-anim="zoom-in">
+            <div class="section-header">
+                <h2>沉淀的祝福</h2>
+            </div>
+            <div class="messages-grid" id="messages-container"></div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <p class="footer-brand">2026届高三7班 · 毕业留念</p>
+            <p class="footer-quote-line">「 青春是一场不可逆的燃烧，而您是我们永远的催化剂 」</p>
+            <div class="footer-links">
+                <span>Experiment No. 2024-2026</span>
+                <span class="footer-dot">·</span>
+                <span>高三年(7)班</span>
+                <span class="footer-dot">·</span>
+                <span class="status-done">Reaction Complete</span>
+            </div>
+            <p class="footer-copy">Designed with <span class="heart">♥</span> by Class 7</p>
+        </div>
+    </footer>
+
+
+    <div id="lightbox-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content lightbox-content glass-panel">
+            <button class="close-modal">&times;</button>
+            <button class="lightbox-prev">&lt;</button>
+            <img id="lightbox-img" src="" alt="照片">
+            <p id="lightbox-desc"></p>
+            <button class="lightbox-next">&gt;</button>
+        </div>
+    </div>
+
+    <!-- 毕业全屏烟花特效界面 -->
+    <div id="fireworks-screen" class="fireworks-screen">
+        <canvas id="graduation-fx" class="fullscreen-canvas"></canvas>
+        <button id="fireworks-close" class="fireworks-close-btn" title="返回页面">×</button>
+        <!-- 彩蛋：电影尾幕 -->
+        <div id="credits-egg" class="credits-egg hidden">
+            <div class="credits-content" id="credits-content"></div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
