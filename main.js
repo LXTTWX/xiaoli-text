@@ -310,16 +310,45 @@ function initHero() {
 
     if (!bgmPlayer || !btnToggle) return;
 
-    // 音频数据配置
+    // 音频数据配置：标记格式以便浏览器兼容性检测
     const tracks = [
-        { src: '凤凰花开的路口 - 林志炫.mp3', name: '凤凰花开的路口' },
-        { src: 'tomorrow-zhangjie.mp3', name: '明天过后' },
-        { src: 'nocrazy-liyuchun.mp3', name: '再不疯狂我们就老了' },
-        { src: '下一段旅程 - 杨和苏KeyNG、张杰.mp3', name: '下一段旅程' },
-        { src: '当你 - 林俊杰.mp3', name: '当你' },
-        { src: '爱，存在2026 - 王鹤棣、魏奇奇.flac', name: '爱，存在2026' }
+        { src: 'fenghuang-linxuan.mp3', name: '凤凰花开的路口', type: 'audio/mpeg' },
+        { src: 'tomorrow-zhangjie.mp3', name: '明天过后', type: 'audio/mpeg' },
+        { src: 'nocrazy-liyuchun.mp3', name: '再不疯狂我们就老了', type: 'audio/mpeg' },
+        { src: 'next-journey.mp3', name: '下一段旅程', type: 'audio/mpeg' },
+        { src: 'dangni-linjunjie.mp3', name: '当你', type: 'audio/mpeg' },
+        { src: 'love-exists-2026.flac', name: '爱，存在2026', type: 'audio/flac' }
     ];
+
+    /** 检测浏览器是否支持指定音频格式 */
+    function canPlayFormat(mimeType) {
+        try {
+            const audio = document.createElement('audio');
+            const result = audio.canPlayType(mimeType);
+            return result === 'probably' || result === 'maybe';
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // 过滤出当前浏览器可播放的曲目（Safari/iOS 不支持 FLAC）
+    const playableTracks = tracks.filter(t => canPlayFormat(t.type));
+    // 建立原始索引到可播放索引的映射
+    const playableIndices = tracks.reduce((acc, t, i) => {
+        if (playableTracks.includes(t)) acc.push(i);
+        return acc;
+    }, []);
+
+    if (playableTracks.length === 0) {
+        console.warn('当前浏览器不支持任何音频格式');
+    } else {
+        console.log(`可播放曲目 ${playableTracks.length}/${tracks.length}`, playableTracks.map(t => t.name));
+    }
+
     let currentTrackIdx = 0;
+    // 连续加载失败计数，防止无限重试
+    let consecutiveFailures = 0;
+    const MAX_FAILURES = tracks.length + 2;
     
     // 初始化持久化音量与曲目状态
     const savedVolume = localStorage.getItem('class7_volume');
@@ -333,18 +362,44 @@ function initHero() {
     
     const savedTrackIdx = localStorage.getItem('class7_track_idx');
     if (savedTrackIdx !== null && tracks[savedTrackIdx]) {
-        currentTrackIdx = parseInt(savedTrackIdx);
+        // 确保恢复的曲目在当前浏览器可播放
+        if (playableIndices.includes(parseInt(savedTrackIdx))) {
+            currentTrackIdx = parseInt(savedTrackIdx);
+        } else if (playableIndices.length > 0) {
+            currentTrackIdx = playableIndices[0];
+        }
+    } else if (playableIndices.length > 0) {
+        currentTrackIdx = playableIndices[0];
     }
-    
-    // 加载当前曲目
+
+    /** 获取当前可播放列表中的位置索引 */
+    function getPlayablePosition(idx) {
+        return playableIndices.indexOf(idx);
+    }
+
+    /** 根据可播放列表位置获取原始 tracks 索引 */
+    function getTrackIndexFromPlayable(pos) {
+        if (pos < 0 || pos >= playableIndices.length) return playableIndices[0] || 0;
+        return playableIndices[pos];
+    }
+
+    /**
+     * 加载指定索引的曲目
+     * @param {number} idx - tracks 数组的原始索引
+     * @param {boolean} autoPlay - 是否自动播放
+     */
     function loadTrack(idx, autoPlay = false) {
+        // 跳过当前浏览器不支持的格式
+        if (!playableIndices.includes(idx)) {
+            idx = playableIndices.length > 0 ? playableIndices[0] : 0;
+        }
         currentTrackIdx = idx;
         const track = tracks[currentTrackIdx];
         // 对中文文件名进行 URL 编码，避免 http-server 找不到文件
         bgmPlayer.src = encodeURI(track.src);
         trackNameEl.textContent = track.name;
         localStorage.setItem('class7_track_idx', currentTrackIdx);
-        
+
         if (autoPlay) {
             bgmPlayer.play().catch(e => console.log('Autoplay prevented', e));
             updatePlayIcon(true);
@@ -393,13 +448,31 @@ function initHero() {
     });
 
     // 播放/暂停联动
-    bgmPlayer.addEventListener('play', () => updatePlayIcon(true));
+    bgmPlayer.addEventListener('play', () => {
+        updatePlayIcon(true);
+        consecutiveFailures = 0; // 播放成功，重置失败计数
+    });
     bgmPlayer.addEventListener('pause', () => updatePlayIcon(false));
 
-    // 加载失败时自动跳转下一首
-    bgmPlayer.addEventListener('error', () => {
-        console.warn(`歌曲加载失败: ${tracks[currentTrackIdx].src}`);
-        const nextIdx = (currentTrackIdx + 1) % tracks.length;
+    // 加载失败时自动跳转下一首（带重试上限保护）
+    bgmPlayer.addEventListener('error', (e) => {
+        consecutiveFailures++;
+        const failedSrc = tracks[currentTrackIdx].src;
+        console.warn(`歌曲加载失败 [${consecutiveFailures}/${MAX_FAILURES}]: ${failedSrc}`, e.target?.error);
+
+        if (consecutiveFailures >= MAX_FAILURES) {
+            // 达到重试上限，停止尝试并提示用户
+            console.warn('所有曲目均加载失败，停止自动播放');
+            trackNameEl.textContent = '暂无可播放曲目';
+            updatePlayIcon(false);
+            showToast('音乐加载失败，请检查网络连接', 4000);
+            return;
+        }
+
+        // 在可播放列表中找下一首
+        const playablePos = getPlayablePosition(currentTrackIdx);
+        const nextPlayablePos = (playablePos + 1) % playableIndices.length;
+        const nextIdx = getTrackIndexFromPlayable(nextPlayablePos);
         loadTrack(nextIdx, !bgmPlayer.paused);
     });
     
@@ -455,9 +528,12 @@ function initHero() {
     progressSlider.addEventListener('mouseup', finishDrag);
     progressSlider.addEventListener('touchend', finishDrag);
 
-    // 单曲播放完毕后自动切下一首
+    // 单曲播放完毕后自动切下一首（仅在可播放列表中切换）
     bgmPlayer.addEventListener('ended', () => {
-        const nextIdx = (currentTrackIdx + 1) % tracks.length;
+        consecutiveFailures = 0; // 播放成功，重置失败计数
+        const playablePos = getPlayablePosition(currentTrackIdx);
+        const nextPlayablePos = (playablePos + 1) % playableIndices.length;
+        const nextIdx = getTrackIndexFromPlayable(nextPlayablePos);
         loadTrack(nextIdx, true);
     });
 
@@ -476,17 +552,19 @@ function initHero() {
     volumeSlider.addEventListener('input', updateVolume);
     volumeSlider.addEventListener('change', updateVolume);
 
-    // 切歌
+    // 切歌（仅在可播放列表中切换）
     btnPrev.addEventListener('click', () => {
         playSound('click');
-        const prevIdx = (currentTrackIdx - 1 + tracks.length) % tracks.length;
-        loadTrack(prevIdx, true);
+        const pos = getPlayablePosition(currentTrackIdx);
+        const prevPos = (pos - 1 + playableIndices.length) % playableIndices.length;
+        loadTrack(getTrackIndexFromPlayable(prevPos), true);
     });
 
     btnNext.addEventListener('click', () => {
         playSound('click');
-        const nextIdx = (currentTrackIdx + 1) % tracks.length;
-        loadTrack(nextIdx, true);
+        const pos = getPlayablePosition(currentTrackIdx);
+        const nextPos = (pos + 1) % playableIndices.length;
+        loadTrack(getTrackIndexFromPlayable(nextPos), true);
     });
 
     // --- 首次滑动自动播放逻辑 ---
@@ -1186,7 +1264,7 @@ const timelineData = [
     { date: '2024.12.31', title: '"择友不滥，交友有节"主题班会', desc: '跨年夜不讲化学讲人生，您说的那些话，我们当时觉得啰嗦，后来却一遍一遍想起来。' },
     { date: '2025.01.05', title: '赴民族中学参加会考', desc: '大巴上闹成一团，您拿着名单反复清点人数。考试前最后一句叮嘱是"别忘写名字"。' },
     { date: '2025.01.21', title: '高二结束', desc: '最后一个高二下午，您在黑板上多写了一行字。那天教室里安静了很久，谁都没先走。' },
-    { date: '2025.03.07', title: '母亲节插花活动', desc: '您教我们剪枝、配色、固定花泥。原来讲台下的小利老师，还有这么温柔的一面。' },
+    { date: '2025.03.07', title: '妇女节插花活动', desc: '您教我们剪枝、配色、固定花泥。原来讲台下的小利老师，还有这么温柔的一面。' },
     { date: '2025.03.18', title: '跳蚤市场', desc: '吆喝声、砍价声、笑声混成一锅粥。您也来逛了一圈，最后买了一堆"没用的小东西"。' },
     { date: '2025.08.10', title: '晋江市紫峰中学2026届高三开班仪式', desc: '新教室、新桌椅、新的倒计时牌。您说"从今天起，每一天都算数"，我们信了。' },
     { date: '2025.09.02', title: '"写给自己的信"班会活动', desc: '您让我们给未来的自己写信。写完之后教室里很安静，有人在偷偷擦眼角。' },
@@ -1326,64 +1404,98 @@ function initPhotoWall() {
         return new Date(parseInt(y), parseInt(m)-1, parseInt(d), parseInt(h), parseInt(min), parseInt(s));
     }
     
-    // 为每张照片预加载EXIF日期
     let sortMode = 'asc';
     
-    // 渲染照片
+    // 先渲染骨架（带加载状态），再异步加载 EXIF 日期后更新
     renderPhotos();
     
-    photos.forEach(photo => {
+    // 并行加载所有 EXIF 日期，完成后更新 DOM
+    Promise.all(photos.map(photo =>
         readExifDate(photo.file).then(date => {
             photo.exifDate = date || '';
             photo.dateObj = parseExifToDate(date);
         }).catch(() => {
             photo.exifDate = '';
             photo.dateObj = null;
-        });
+        })
+    )).then(() => {
+        // EXIF 加载完成后，更新日期显示并重新排序渲染
+        updatePhotoDates();
     });
     
-    function renderPhotos() {
-        container.innerHTML = '';
-        const sorted = [...photos].sort((a, b) => {
+    /** 更新所有照片的日期显示（不重建整个 DOM，仅更新文本） */
+    function updatePhotoDates() {
+        const items = container.querySelectorAll('.photo-item');
+        items.forEach((item, i) => {
+            // 根据当前排序模式找到对应 photo
+            const sorted = getSortedPhotos();
+            if (sorted[i]) {
+                const timeEl = item.querySelector('.photo-time');
+                if (timeEl) {
+                    timeEl.textContent = formatExifDate(sorted[i].exifDate) || '未知日期';
+                }
+            }
+        });
+    }
+    
+    function getSortedPhotos() {
+        return [...photos].sort((a, b) => {
             if(!a.dateObj && !b.dateObj) return 0;
             if(!a.dateObj) return 1;
             if(!b.dateObj) return -1;
             return sortMode === 'asc' ? a.dateObj - b.dateObj : b.dateObj - a.dateObj;
         });
+    }
+    
+    function renderPhotos() {
+        container.innerHTML = '';
+        const sorted = getSortedPhotos();
         
         sorted.forEach(photo => {
             const div = document.createElement('div');
             div.className = 'photo-item';
             const noteHtml = photo.note ? `<div class="photo-note">${photo.note}</div>` : '';
             div.innerHTML = `
-                <div class="photo-loading" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.3);font-size:0.8rem;">加载中...</div>
+                <div class="photo-skeleton" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:rgba(255,255,255,0.25);font-size:0.8rem;gap:8px;">
+                    <div class="photo-skeleton-bar" style="width:60%;height:8px;border-radius:4px;background:rgba(255,255,255,0.08);overflow:hidden;position:relative;">
+                        <div style="position:absolute;left:-40%;top:0;width:40%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);animation:shimmer 1.5s infinite;"></div>
+                    </div>
+                    <span>加载中...</span>
+                </div>
                 <div class="photo-tag">${photo.tag}</div>
                 <div class="photo-time">${formatExifDate(photo.exifDate) || '未知日期'}</div>
                 ${noteHtml}
             `;
-            Promise.resolve(photo.file).then(url => {
-                const loading = div.querySelector('.photo-loading');
-                if(loading) loading.remove();
-                const img = document.createElement('img');
-                img.src = url;
-                img.alt = photo.tag;
-                img.loading = 'lazy';
-                img.onerror = () => {
-                    img.remove();
-                    const fail = document.createElement('div');
-                    fail.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.4);font-size:0.8rem;text-align:center;padding:1rem;';
-                    fail.textContent = '📷 ' + photo.tag;
-                    div.insertBefore(fail, div.firstChild);
-                };
+
+            // 创建图片并监听加载事件
+            const img = new Image();
+            img.loading = 'lazy';
+            img.alt = photo.tag;
+            img.style.cssText = 'opacity:0;transition:opacity 0.4s ease;width:100%;height:100%;object-fit:cover;';
+            img.src = encodeURI(photo.file);
+
+            img.onload = () => {
+                const skeleton = div.querySelector('.photo-skeleton');
+                if (skeleton) skeleton.remove();
                 div.insertBefore(img, div.firstChild);
-                photo.displayUrl = url;
-            }).catch(() => {
-                const loading = div.querySelector('.photo-loading');
-                if(loading) {
-                    loading.textContent = '📷 ' + photo.tag;
-                    loading.style.color = 'rgba(255,255,255,0.4)';
+                // 触发淡入
+                requestAnimationFrame(() => { img.style.opacity = '1'; });
+                photo.displayUrl = photo.file;
+            };
+
+            img.onerror = () => {
+                const skeleton = div.querySelector('.photo-skeleton');
+                if (skeleton) {
+                    skeleton.innerHTML = `
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="rgba(255,255,255,0.2)">
+                            <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                        </svg>
+                        <span style="color:rgba(255,255,255,0.35);font-size:0.75rem;">${photo.tag}</span>
+                    `;
+                    skeleton.style.cursor = 'default';
                 }
-            });
+            };
+
             div.addEventListener('click', () => showPhotoDetail(photo));
             container.appendChild(div);
         });
@@ -1393,7 +1505,7 @@ function initPhotoWall() {
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;z-index:9999;animation:fadeIn 0.3s ease;cursor:pointer;';
         
-        const displaySrc = photo.displayUrl || photo.file;
+        const displaySrc = encodeURI(photo.displayUrl || photo.file);
         const img = document.createElement('img');
         img.src = displaySrc;
         img.style.cssText = 'max-width:95vw;max-height:90vh;object-fit:contain;border-radius:4px;';
@@ -1439,6 +1551,9 @@ function initPhotoWall() {
 }
 
 // --- 视频集锦模块 ---
+/**
+ * 视频集锦模块：带懒加载、加载指示器、移动端兼容
+ */
 function initVideos() {
     const container = document.getElementById('video-wall');
     if(!container) return;
@@ -1446,27 +1561,62 @@ function initVideos() {
     const videos = [
         { file: '94cb525eb7478052ffe5f0ac08fbe0c2.mp4', label: '青春回忆' }
     ];
-    
+
+    /** 是否为触屏设备 */
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
     videos.forEach(v => {
         const div = document.createElement('div');
         div.className = 'video-item';
         div.innerHTML = `
-            <video src="${v.file}" preload="metadata" muted></video>
+            <div class="video-loading"><div class="video-loading-spinner"></div></div>
+            <video data-src="${encodeURI(v.file)}" preload="none" muted playsinline></video>
             <div class="video-play"></div>
             <div class="video-label">${v.label}</div>
         `;
-        
-        // 悬停预览
+
         const vid = div.querySelector('video');
-        div.addEventListener('mouseenter', () => { vid.play().catch(()=>{}); });
-        div.addEventListener('mouseleave', () => { vid.pause(); vid.currentTime = 0; });
+        const loadingEl = div.querySelector('.video-loading');
+
+        /** 懒加载：进入视口后才设置 src 并加载 metadata */
+        const lazyObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const realSrc = vid.dataset.src;
+                    if (realSrc && !vid.src) {
+                        vid.src = realSrc;
+                        vid.addEventListener('loadedmetadata', () => {
+                            if (loadingEl) loadingEl.remove();
+                        }, { once: true });
+                        vid.addEventListener('error', () => {
+                            if (loadingEl) {
+                                loadingEl.innerHTML = '<span style="color:rgba(255,255,255,0.4);">视频加载失败</span>';
+                            }
+                        }, { once: true });
+                    }
+                    lazyObserver.unobserve(entry.target);
+                }
+            });
+        }, { rootMargin: '200px' });
+        lazyObserver.observe(div);
+
+        // 悬停预览（仅非触屏设备）
+        if (!isTouchDevice) {
+            div.addEventListener('mouseenter', () => {
+                if (vid.src) vid.play().catch(()=>{});
+            });
+            div.addEventListener('mouseleave', () => {
+                if (!vid.paused) { vid.pause(); vid.currentTime = 0; }
+            });
+        }
         
         // 点击全屏播放
         div.addEventListener('click', () => {
             const overlay = document.createElement('div');
             overlay.className = 'video-overlay';
+            const encodedSrc = encodeURI(v.file);
             overlay.innerHTML = `
-                <video src="${v.file}" controls autoplay style="max-width:90vw;max-height:85vh;border-radius:8px;"></video>
+                <video src="${encodedSrc}" controls autoplay playsinline style="max-width:90vw;max-height:85vh;border-radius:8px;"></video>
                 <button class="close-btn">×</button>
             `;
             const closeBtn = overlay.querySelector('.close-btn');
@@ -2890,42 +3040,62 @@ function initStats() {
     const statValues = document.querySelectorAll('.stat-value');
     let animated = false;
 
-    const observer = new IntersectionObserver((entries) => {
-        if(entries[0].isIntersecting && !animated) {
-            animated = true;
-            statValues.forEach(el => {
-                const target = parseFloat(el.getAttribute('data-target'));
-                const suffix = el.getAttribute('data-suffix') || '';
-                const isDecimal = el.getAttribute('data-target').includes('.');
-                const duration = 2000;
-                const start = performance.now();
+    /** 执行数字递增动画 */
+    function runCountAnimation() {
+        if (animated) return;
+        animated = true;
+        statValues.forEach(el => {
+            const target = parseFloat(el.getAttribute('data-target'));
+            const suffix = el.getAttribute('data-suffix') || '';
+            const isDecimal = el.getAttribute('data-target').includes('.');
+            const duration = 2000;
+            const start = performance.now();
 
-                function update(currentTime) {
-                    const elapsed = currentTime - start;
-                    const progress = Math.min(elapsed / duration, 1);
-                    // easeOutQuart
-                    const easeProgress = 1 - Math.pow(1 - progress, 4);
-                    const currentVal = target * easeProgress;
+            function update(currentTime) {
+                const elapsed = currentTime - start;
+                const progress = Math.min(elapsed / duration, 1);
+                // easeOutQuart
+                const easeProgress = 1 - Math.pow(1 - progress, 4);
+                const currentVal = target * easeProgress;
 
-                    if(isDecimal) {
-                        el.textContent = currentVal.toFixed(1) + suffix;
-                    } else {
-                        el.textContent = Math.floor(currentVal) + suffix;
-                    }
-
-                    if(progress < 1) {
-                        requestAnimationFrame(update);
-                    } else {
-                        el.textContent = (isDecimal ? target.toFixed(1) : target) + suffix;
-                    }
+                if(isDecimal) {
+                    el.textContent = currentVal.toFixed(1) + suffix;
+                } else {
+                    el.textContent = Math.floor(currentVal) + suffix;
                 }
-                requestAnimationFrame(update);
-            });
-        }
-    }, { threshold: 0.5 });
+
+                if(progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    el.textContent = (isDecimal ? target.toFixed(1) : target) + suffix;
+                }
+            }
+            requestAnimationFrame(update);
+        });
+    }
+
+    // 降低阈值，确保小屏/移动端也能触发
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if(entry.isIntersecting && !animated) {
+                runCountAnimation();
+            }
+        });
+    }, { threshold: 0.1, rootMargin: '0px 0px -10% 0px' });
 
     const statsModule = document.getElementById('stats-module');
     if(statsModule) {
         observer.observe(statsModule);
+
+        // 兜底：5秒后检查模块是否已在视口内（防止某些设备 observer 失效）
+        setTimeout(() => {
+            if (!animated) {
+                const rect = statsModule.getBoundingClientRect();
+                const inView = rect.top < window.innerHeight && rect.bottom > 0;
+                if (inView) {
+                    runCountAnimation();
+                }
+            }
+        }, 5000);
     }
 }
