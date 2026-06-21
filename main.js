@@ -1,7 +1,9 @@
 // 全局配置与状态
 const CONFIG = {
     targetDate: new Date('2026-06-09T17:00:00').getTime(),
-    startDate: new Date('2024-08-26T08:00:00').getTime()
+    startDate: new Date('2024-08-26T08:00:00').getTime(),
+    // 媒体文件 CDN 基础路径（解决 GitHub Pages 大文件 404 问题）
+    cdnBase: 'https://cdn.jsdelivr.net/gh/LXTTWX/xiaoli-text@main/'
 };
 
 // --- 音频反馈系统 (Web Audio API) ---
@@ -395,8 +397,8 @@ function initHero() {
         }
         currentTrackIdx = idx;
         const track = tracks[currentTrackIdx];
-        // 对中文文件名进行 URL 编码，避免 http-server 找不到文件
-        bgmPlayer.src = encodeURI(track.src);
+        // 使用 CDN 路径，解决 GitHub Pages 大文件 404 问题
+        bgmPlayer.src = CONFIG.cdnBase + encodeURI(track.src);
         trackNameEl.textContent = track.name;
         localStorage.setItem('class7_track_idx', currentTrackIdx);
 
@@ -1411,7 +1413,7 @@ function initPhotoWall() {
     
     // 并行加载所有 EXIF 日期，完成后更新 DOM
     Promise.all(photos.map(photo =>
-        readExifDate(photo.file).then(date => {
+        readExifDate(CONFIG.cdnBase + photo.file).then(date => {
             photo.exifDate = date || '';
             photo.dateObj = parseExifToDate(date);
         }).catch(() => {
@@ -1472,7 +1474,7 @@ function initPhotoWall() {
             img.loading = 'lazy';
             img.alt = photo.tag;
             img.style.cssText = 'opacity:0;transition:opacity 0.4s ease;width:100%;height:100%;object-fit:cover;';
-            img.src = encodeURI(photo.file);
+            img.src = CONFIG.cdnBase + encodeURI(photo.file);
 
             img.onload = () => {
                 const skeleton = div.querySelector('.photo-skeleton');
@@ -1480,7 +1482,7 @@ function initPhotoWall() {
                 div.insertBefore(img, div.firstChild);
                 // 触发淡入
                 requestAnimationFrame(() => { img.style.opacity = '1'; });
-                photo.displayUrl = photo.file;
+                photo.displayUrl = CONFIG.cdnBase + photo.file;
             };
 
             img.onerror = () => {
@@ -1505,7 +1507,7 @@ function initPhotoWall() {
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;z-index:9999;animation:fadeIn 0.3s ease;cursor:pointer;';
         
-        const displaySrc = encodeURI(photo.displayUrl || photo.file);
+        const displaySrc = encodeURI(photo.displayUrl || CONFIG.cdnBase + photo.file);
         const img = document.createElement('img');
         img.src = displaySrc;
         img.style.cssText = 'max-width:95vw;max-height:90vh;object-fit:contain;border-radius:4px;';
@@ -1570,7 +1572,7 @@ function initVideos() {
         div.className = 'video-item';
         div.innerHTML = `
             <div class="video-loading"><div class="video-loading-spinner"></div></div>
-            <video data-src="${encodeURI(v.file)}" preload="none" muted playsinline></video>
+            <video data-src="${CONFIG.cdnBase + encodeURI(v.file)}" preload="none" muted playsinline></video>
             <div class="video-play"></div>
             <div class="video-label">${v.label}</div>
         `;
